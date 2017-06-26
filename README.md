@@ -1,1 +1,1 @@
-# itemCatalog
+this project is referenced from classroom and hence is totally similar to it.
