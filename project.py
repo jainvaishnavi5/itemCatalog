@@ -31,7 +31,6 @@ DBSession = sessionmaker(bind=engine)
 session = DBSession()
 
 
-
 # User Helper Functions
 
 
@@ -102,11 +101,13 @@ def newRestaurant():
     else:
         return render_template('newRestaurant.html')
 
+
 # Edit a restaurant
 def check(abc):
     if abc.user_id != login_session['user_id']:
         flash('You are not permitted to edit %s' % abc.name)
         return redirect(url_for('showRestaurants'))
+
 
 @app.route('/restaurant/<int:restaurant_id>/edit/', methods=['GET', 'POST'])
 def editRestaurant(restaurant_id):
@@ -123,8 +124,6 @@ def editRestaurant(restaurant_id):
     else:
         return render_template('''
         editRestaurant.html''', restaurant=editedRestaurant)
-
-
 
 
 # Show a restaurant menu
@@ -145,7 +144,9 @@ def showMenu(restaurant_id):
 def newMenuItem(restaurant_id):
     if 'username' not in login_session:
         return redirect('/login')
+
     restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
+    check(restaurant)
     if request.method == 'POST':
         newItem = MenuItem(name=request.form['name'], description=request.form['''
         description'''], price=request.form['''
@@ -168,23 +169,27 @@ def editMenuItem(restaurant_id, menu_id):
         return redirect('/login')
     editedItem = session.query(MenuItem).filter_by(id=menu_id).one()
     restaurant = session.query(Restaurant).filter_by(id=restaurant_id).one()
-    check(editedItem)
-    if request.method == 'POST':
-        if request.form['name']:
-            editedItem.name = request.form['name']
-        if request.form['description']:
-            editedItem.description = request.form['description']
-        if request.form['price']:
-            editedItem.price = request.form['price']
-        if request.form['course']:
-            editedItem.course = request.form['course']
-        session.add(editedItem)
-        session.commit()
-        flash('Menu Item Successfully Edited')
-        return redirect(url_for('showMenu', restaurant_id=restaurant_id))
+    if not check(editedItem):
+        return self.redirect(/)
     else:
-        return render_template('''editmenuitem.
-        html''', restaurant_id=restaurant_id, menu_id=menu_id, item=editedItem)
+        if request.method == 'POST':
+            if request.form['name']:
+                editedItem.name = request.form['name']
+            if request.form['description']:
+                editedItem.description = request.form['description']
+            if request.form['price']:
+                editedItem.price = request.form['price']
+            if request.form['course']:
+                editedItem.course = request.form['course']
+            session.add(editedItem)
+            session.commit()
+            flash('Menu Item Successfully Edited')
+            return redirect(url_for('showMenu', restaurant_id=restaurant_id))
+        else:
+            return render_template('''editmenuitem.
+            html''', restaurant_id=restaurant_id,
+                                   menu_id=menu_id, item=editedItem)
+
 
 # Delete a restaurant
 @app.route('''/restaurant/
@@ -194,13 +199,14 @@ def deleteRestaurant(restaurant_id):
         return redirect('/login')
     restaurantToDelete = session.query(
         Restaurant).filter_by(id=restaurant_id).one()
-    itemToDelete = session.query(MenuItem).filter_by(restaurant_id = restaurant_id)
+    itemToDelete = session.query(
+        MenuItem).filter_by(restaurant_id=restaurant_id)
     check(restaurantToDelete)
     if request.method == 'POST':
         for i in itemToDelete:
             deleteMenuItem(restaurantToDelete, i)
         session.delete(restaurantToDelete)
-        
+
         flash('%s Successfully Deleted' % restaurantToDelete.name)
         session.commit()
         return redirect(url_for('''show
@@ -208,6 +214,7 @@ def deleteRestaurant(restaurant_id):
     else:
         return render_template('''delete
         Restaurant.html''', restaurant=restaurantToDelete)
+
 
 # Delete a menu item
 @app.route('''/restaurant/
@@ -226,13 +233,16 @@ def deleteMenuItem(restaurant_id, menu_id):
     else:
         return render_template('deleteMenuItem.html', item=itemToDelete)
 
-# this function is initiated whenever we click on log in button it renders login template and passes state which is actually a token.
+
+# this function is initiated whenever we click on log in button
+# it renders login template and passes state which is actually a token.
 @app.route('/login')
 def showLogin():
     state = ''.join(random.choice(string.ascii_uppercase + string.digits)
                     for x in xrange(32))
     login_session['state'] = state
     return render_template('login.html', STATE=state)
+
 
 # this function is implemented when google sign in button is clicked.
 @app.route('/gconnect', methods=['POST'])
@@ -283,12 +293,12 @@ def gconnect():
         print "Token's client ID does not match app's."
         response.headers['Content-Type'] = 'application/json'
         return response
-    #if user already logged in then sends status as 200.
+    # if user already logged in then sends status as 200.
     stored_credentials = login_session.get('credentials')
     stored_gplus_id = login_session.get('gplus_id')
     if stored_credentials is not None and gplus_id == stored_gplus_id:
-        response = make_response(json.dumps('Current user is already connected.'),
-                                 200)
+        response = make_response(json.dumps('''Current user
+        is already connected.'''), 200)
         response.headers['Content-Type'] = 'application/json'
         flash("you are now logged in as %s" % login_session['user_id'])
         return response
@@ -307,30 +317,31 @@ def gconnect():
     login_session['username'] = data['name']
     login_session['picture'] = data['picture']
     login_session['email'] = data['email']
-    #cheks if user is already in user database. If not it stores user info in User database.
-    emuse=getUserID(login_session['email'])
+    # cheks if user is already in user database.
+    # If not it stores user info in User database.
+    emuse = getUserID(login_session['email'])
     if not emuse:
-        emuse=createUser(login_session)
-        login_session['user_id']=emuse
+        emuse = createUser(login_session)
+        login_session['user_id'] = emuse
     else:
-        login_session['user_id']=emuse
+        login_session['user_id'] = emuse
 
-
-
-    #Creates an output for user and sends successful state 200.
+    # Creates an output for user and sends successful state 200.
     output = ''
     output += '<h1>Welcome, '
     output += login_session['username']
     output += '!</h1>'
     output += '<img src="'
     output += login_session['picture']
-    output += ' " style = "width: 150px; height: 150px;border-radius: 100px;-webkit-border-radius: 100px;-moz-border-radius: 100px;margin-top:20px;"> '
+    output += ' " style = "width: 150px; height: 150px;border-radius: 100px;\
+    -webkit-border-radius: 100px;-moz-border-radius: 100px;margin-top:20px;"> '
     flash("you are now logged in as %s" % login_session['username'])
     print "done"
     response = make_response(json.dumps(output),
-                                 200)
+                             200)
     response.headers['Content-Type'] = 'application/json'
     return response
+
 
 # code to diconnect current user.
 @app.route('/gdisconnect')
@@ -347,7 +358,7 @@ def gdisconnect():
     h = httplib2.Http()
     result = h.request(url, 'GET')[0]
     print result
-	#if  user is logged in:
+    # if  user is logged in:
     if result['status'] == '200':
         # Reset the user's sesson.
         del login_session['credentials']
